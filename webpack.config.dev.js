@@ -5,7 +5,7 @@ module.exports = {
     mode: "development",
     entry: [
         'webpack/hot/only-dev-server',
-        './example/example.js'
+        './example/index.js'
     ],
     output: {
         path: path.resolve(__dirname, 'build'),//打包后的文件存放的地方

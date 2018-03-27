@@ -24,7 +24,6 @@ function Vnode(type, props, key, ref) {
  * @returns {Vnode} 返回vode节点对象
  */
 function createElement(type, config, ...children) {
-    console.log(children)
     let props = {},
         key = null,
         ref = null,
