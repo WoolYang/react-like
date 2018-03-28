@@ -20,7 +20,7 @@ module.exports = {
         hot: true,
         publicPath: '/',
         inline: true,
-        port: 8000
+        port: 8001
     },
     module: {
         rules: [

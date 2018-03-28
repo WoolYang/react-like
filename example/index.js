@@ -3,13 +3,13 @@ import React from '../src/index';
 class Test extends React.Component {
     constructor(props) {
         super(props);
-        setInterval(function () {
-            const color = ['#eee', 'black', 'red', 'green', 'blue', 'grey', '#133234', '#123213', '222345', '998232']
-            const rand = parseInt(Math.min(10, Math.random() * 10))
-            this.setState({
-                color: color[rand]
-            })
-        }.bind(this), 1000);
+        /*         setInterval(function () {
+                    const color = ['#eee', 'black', 'red', 'green', 'blue', 'grey', '#133234', '#123213', '222345', '998232']
+                    const rand = parseInt(Math.min(10, Math.random() * 10))
+                    this.setState({
+                        color: color[rand]
+                    })
+                }.bind(this), 1000); */
     }
 
     state = {
@@ -19,6 +19,7 @@ class Test extends React.Component {
     render() {
         return (
             <div className='test' style={{ background: this.state.color, height: '100px', width: '100px' }}>
+                <span><i></i></span>
                 <span></span>
             </div>
         )

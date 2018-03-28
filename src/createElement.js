@@ -1,3 +1,4 @@
+import { typeNumber } from "./utils";
 /**
  * 
  * Vnode构造函数是用于生成vode对象来存储由JSX转化来的虚拟dom
@@ -24,6 +25,7 @@ function Vnode(type, props, key, ref) {
  * @returns {Vnode} 返回vode节点对象
  */
 export function createElement(type, config, ...children) {
+    //console.log(type)
     let props = {},
         key = null,
         ref = null,
@@ -32,9 +34,7 @@ export function createElement(type, config, ...children) {
     if (config != null) {
 
         key = config.key === undefined ? null : '' + config.key;
-
         ref = config.ref === undefined ? null : config.ref;
-
 
         for (let propName in config) {
 
@@ -47,10 +47,20 @@ export function createElement(type, config, ...children) {
     }
 
     if (childLength === 1) {
-        props.children = children[0];
-    } else {
-        props.children = children;
+        props.children = typeNumber(children[0]) > 2 ? children[0] : [] //null undefined节点不渲染
+    } else if (childLength > 1) { //child为空时不移动到props
+        props.children = children
     }
 
+    /*     let defaultProps = type.defaultProps; //加载
+        if (defaultProps) {
+            for (let propName in defaultProps) {
+                if (props[propName] === undefined) {
+                    props[propName] = defaultProps[propName];
+                }
+            }
+        }
+     */
+    // console.log(props)
     return new Vnode(type, props, key, ref);
 }
