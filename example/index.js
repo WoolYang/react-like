@@ -17,10 +17,22 @@ class Test extends React.Component {
     }
 
     render() {
+        const names = ['Alice', 'Emily', 'Kate'];
+
         return (
             <div className='test' style={{ background: this.state.color, height: '100px', width: '100px' }}>
-                <span><i></i></span>
-                <span></span>
+                <span>
+                    <i>1111111</i>
+                </span>
+                <div>
+                    {
+                        names.map(item => <div>item</div>)
+                    }
+                </div>
+                {
+                    names.map(item => 'item')
+                }
+                22
             </div>
         )
     }
