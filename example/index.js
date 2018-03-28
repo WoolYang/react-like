@@ -1,8 +1,6 @@
-import React from '../src/createElement';
-import ReactDOM from '../src/render';
-import Component from '../src/component'
+import React from '../src/index';
 
-class Test extends Component {
+class Test extends React.Component {
     constructor(props) {
         super(props);
         setInterval(function () {
@@ -27,7 +25,7 @@ class Test extends Component {
     }
 }
 
-ReactDOM.render(
+React.render(
     <Test />,
     document.getElementById('root')
 )

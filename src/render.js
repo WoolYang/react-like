@@ -5,7 +5,7 @@
  * @param {any} 放置容器 
  * @returns 
  */
-function render(Vnode, container) {
+export function render(Vnode, container) {
     //console.log(Vnode)
     const {
         type,
@@ -62,8 +62,3 @@ function renderComponent(Vnode, container) {
     instance.Vnode = renderedVnode; //挂载虚拟dom
     return domNode; //返回真实dom
 }
-
-const ReactDOM = {
-    render
-}
-export default ReactDOM

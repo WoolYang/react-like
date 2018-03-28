@@ -23,7 +23,7 @@ function Vnode(type, props, key, ref) {
  * @param {array} children 解析jsx后得到的子节点信息
  * @returns {Vnode} 返回vode节点对象
  */
-function createElement(type, config, ...children) {
+export function createElement(type, config, ...children) {
     let props = {},
         key = null,
         ref = null,
@@ -54,9 +54,3 @@ function createElement(type, config, ...children) {
 
     return new Vnode(type, props, key, ref);
 }
-
-const React = {
-    createElement
-}
-
-export default React
