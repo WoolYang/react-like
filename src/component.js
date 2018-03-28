@@ -1,8 +1,9 @@
+import { mapProps } from './mapProps'
+
 export class Component {
     constructor(props) {
         this.props = props
         this.state = this.state || {}
-
         this.nextState = null
     }
 
@@ -20,22 +21,8 @@ export class Component {
 
 function updateComponent(instance, oldVnode, newVnode) {
     if (oldVnode.type === newVnode.type) {
-        mapProps(oldVnode._hostNode, newVnode.props)//更新节点
+        mapProps(oldVnode._hostNode, newVnode.props, newVnode)//更新节点
     } else {
         //remove
-    }
-}
-
-function mapProps(domNode, props) {
-    for (let propsName in props) {
-        if (propsName === 'children') continue;
-        if (propsName === 'style') {
-            let style = props['style'];
-            Object.keys(style).forEach((styleName) => {
-                domNode.style[styleName] = style[styleName];
-            })
-            continue;
-        }
-        domNode[propsName] = props[propsName]
     }
 }

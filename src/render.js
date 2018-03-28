@@ -1,8 +1,15 @@
 import { typeNumber } from "./utils";
 import { flattenChildren } from './createElement'
+import { mapProps } from './mapProps'
 
 let mountIndex = 0 //统计挂载次数
 let containerMap = {} //用于缓存vnode，即虚拟dom树
+
+//记录负责创建此元素的组件。指当前正处于构建过程中的组件,实例化完成或render方法执行完成，currentOwner.cur置为null 
+//大概既然是个指针，用处是什么？
+export let currentOwner = {
+    cur: null
+};
 
 /**
  * 虚拟dom渲染引擎入口
@@ -22,7 +29,7 @@ export function render(Vnode, container) {
     container.UniqueKey = mountIndexAdd(); //标注挂载次数
     containerMap[container.UniqueKey] = Vnode; //缓存dom树
     renderCore(Vnode, container);
-
+    console.log(containerMap)
     return Vnode._instance; //暂时没有用到
 }
 
@@ -32,7 +39,7 @@ function renderCore(Vnode, container) {
         type,
         props
     } = Vnode;
-    // console.log(type)
+    // console.log(Vnode)
     if (!type) return;
     const { children } = props;
 
@@ -46,7 +53,7 @@ function renderCore(Vnode, container) {
         domNode = document.createElement(type);
     }
 
-    mapProps(domNode, props) //映射props中的属性到domNode
+    mapProps(domNode, props, Vnode) //映射props中的属性到domNode
     if (typeNumber(children) > 2 && children !== undefined) { //child不存在或类型不符合时不做解析处理
         mountChildren(children, domNode, Vnode); //解析children内容
     }
@@ -110,7 +117,7 @@ function mountNativeElement(Vnode, parentDomNode) {
 
 //解析文本
 function mountTextComponent(Vnode, domNode) {
-    let fixText = Vnode.props === 'createPortal' ? '' : Vnode.props
+    let fixText = Vnode.props
     let textDomNode = document.createTextNode(fixText)
     domNode.appendChild(textDomNode)
     Vnode._hostNode = textDomNode
@@ -120,30 +127,30 @@ function mountTextComponent(Vnode, domNode) {
 
 //挂载自定义组件
 function mountComponent(Vnode, parentDomNode) {
-    const ComponentClass = Vnode.type; //拿到自定义组件(function)
-    const { props } = Vnode.props; //拿到自定义组件的props
-    const instance = new ComponentClass(props); //实例化自定义组件，传入props
+    const { type, props, key, ref } = Vnode
+
+    const Component = type; //拿到自定义组件(function)
+
+    const instance = new Component(props); //实例化自定义组件，传入props
+
+    Vnode._instance = instance; // 在父节点上的child元素会保存一个自己，对应组件实例化对象
+
+    if (!instance.render) {
+        Vnode._instance = instance;//for react-redux,这里是渲染无状态组件，直接渲染
+        return renderCore(instance, parentDomNode);
+    }
+    //let lastOwner = currentOwner.cur;
+    currentOwner.cur = instance;
+
     const renderedVnode = instance.render(); //自定义组件中的render方法获取vnode
     const domNode = renderCore(renderedVnode, parentDomNode); //递归调用
 
-    instance.Vnode = renderedVnode; //挂载虚拟dom
+    currentOwner.cur = null;
+
+    instance.Vnode = renderedVnode; //挂载虚拟dom到组件实例上
     return domNode; //返回真实dom
 }
 
 function mountIndexAdd() {
     return mountIndex++
-}
-
-function mapProps(domNode, props) {
-    for (let propsName in props) {
-        if (propsName === 'children') continue;
-        if (propsName === 'style') {
-            let style = props['style'];
-            Object.keys(style).forEach((styleName) => {
-                domNode.style[styleName] = style[styleName];
-            })
-            continue;
-        }
-        domNode[propsName] = props[propsName]
-    }
 }

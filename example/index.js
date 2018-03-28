@@ -21,7 +21,7 @@ class Test extends React.Component {
 
         return (
             <div className='test' style={{ background: this.state.color, height: '100px', width: '100px' }}>
-                <span>
+                <span className='test'>
                     <i>1111111</i>
                 </span>
                 <div>
@@ -39,6 +39,6 @@ class Test extends React.Component {
 }
 
 React.render(
-    <Test />,
+    <Test classs={11} />,
     document.getElementById('root')
 )

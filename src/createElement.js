@@ -1,4 +1,12 @@
 import { typeNumber } from "./utils";
+import { currentOwner } from './render'
+
+//props中需要过滤的
+const RESERVED_PROPS = {
+    ref: true,
+    key: true
+}
+
 /**
  * 
  * Vnode构造函数是用于生成vode对象来存储由JSX转化来的虚拟dom
@@ -9,6 +17,7 @@ import { typeNumber } from "./utils";
  * @param {any} ref 节点ref属性
  */
 function Vnode(type, props, key, ref) {
+    this.owner = currentOwner.cur
     this.type = type
     this.props = props
     this.key = key
@@ -37,7 +46,8 @@ export function createElement(type, config, ...children) {
 
         for (let propName in config) {
 
-            if (propName === 'key' || propName === 'ref') continue;
+            //if (propName === 'key' || propName === 'ref') continue;
+            if (RESERVED_PROPS.hasOwnProperty(propName)) continue
 
             if (config.hasOwnProperty(propName)) {
                 props[propName] = config[propName];
