@@ -35,10 +35,7 @@ export function render(Vnode, container) {
 
 //渲染引擎核心模块
 function renderCore(Vnode, container) {
-    const {
-        type,
-        props
-    } = Vnode;
+    const { type, props } = Vnode;
     // console.log(Vnode)
     if (!type) return;
     const { children } = props;
@@ -53,14 +50,19 @@ function renderCore(Vnode, container) {
         domNode = document.createElement(type);
     }
 
-    mapProps(domNode, props, Vnode) //映射props中的属性到domNode
-    if (typeNumber(children) > 2 && children !== undefined) { //child不存在或类型不符合时不做解析处理
-        mountChildren(children, domNode, Vnode); //解析children内容
+    if (typeof type !== 'function') {
+        if (typeNumber(children) > 2 && children !== undefined) { //child不存在或类型不符合时不做解析处理
+            const NewChild = mountChildren(children, domNode, Vnode); //解析children内容，记录格式化后的children
+            props.children = NewChild
+        }
     }
 
     Vnode._hostNode = domNode; //真实dom挂载到对应层级的vnode属性上
 
+    mapProps(domNode, props, Vnode) //映射props中的属性到domNode
+
     container.appendChild(domNode)
+
     return domNode;
 }
 
@@ -105,6 +107,8 @@ function mountChildren(children, parentDomNode, parentVnode) {
         flattenChildList = flattenChildren(children, parentVnode);
         mountTextComponent(flattenChildList, parentDomNode); //普通类型直接处理
     }
+
+    return flattenChildList
 }
 
 //解析文本vnode，并挂载真实dom到_hostNode
@@ -142,15 +146,65 @@ function mountComponent(Vnode, parentDomNode) {
     //let lastOwner = currentOwner.cur;
     currentOwner.cur = instance;
 
-    const renderedVnode = instance.render(); //自定义组件中的render方法获取vnode
-    const domNode = renderCore(renderedVnode, parentDomNode); //递归调用
+    let renderedVnode = catchError(instance, 'render', [Vnode]);
+    const renderedType = typeNumber(renderedVnode);
+    console.log(renderedType)
+    //  const renderedVnode = instance.render(); //自定义组件中的render方法获取vnode
 
     currentOwner.cur = null;
 
+    if (renderedVnode === void 233) {
+        // console.warn('你可能忘记在组件render()方法中返回jsx了');
+        return;
+    }
+
+    renderedVnode = renderedVnode ? renderedVnode : new VnodeClass('#text', "", null, null);
+
+    renderedVnode.key = key || null;
     instance.Vnode = renderedVnode; //挂载虚拟dom到组件实例上
+    instance.Vnode._mountIndex = mountIndexAdd();
+
+    let domNode = null
+    if (renderedType !== 7) {
+        domNode = renderCore(renderedVnode, parentDomNode); //递归调用
+    }
+
     return domNode; //返回真实dom
 }
 
 function mountIndexAdd() {
     return mountIndex++
+}
+
+
+
+
+
+
+
+
+
+function catchError(Instance, hookname, args) {
+    try {
+        if (Instance[hookname]) {
+            var resulte = void 666;
+            if (hookname === 'render') {
+                resulte = Instance[hookname].apply(Instance)
+            } else {
+                resulte = Instance[hookname].apply(Instance, args)
+            }
+            return resulte
+        }
+    } catch (e) {
+        // throw new Error(e);
+        // disposeVnode(Instance.Vnode);
+        let Vnode = void 666;
+        Vnode = Instance.Vnode;
+        if (hookname === 'render' || hookname === 'componentWillMount') {
+            Vnode = args[0];
+        }
+        collectErrorVnode(e, Vnode, hookname);
+
+        if (hookname !== 'render') return true;
+    }
 }
