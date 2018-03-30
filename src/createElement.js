@@ -16,7 +16,7 @@ const RESERVED_PROPS = {
  * @param {string|null} key 节点key值
  * @param {any} ref 节点ref属性
  */
-function Vnode(type, props, key, ref) {
+export function Vnode(type, props, key, ref) {
     this.owner = currentOwner.cur
     this.type = type
     this.props = props

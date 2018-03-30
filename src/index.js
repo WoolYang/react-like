@@ -1,9 +1,9 @@
-import { Component } from './component'
+import { ReactClass } from './reactClass'
 import { createElement } from './createElement'
 import { render } from './render'
 
 const React = {
-    Component,
+    Component: ReactClass,
     createElement,
     render
 }

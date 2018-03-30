@@ -37,12 +37,17 @@ export function render(Vnode, container) {
         throw new Error('Target container is not a DOM element.')
     }
 
+    if (container.UniqueKey) {//若干该组件已经被渲染
+        const oldVnode = containerMap[UniqueKey]
+        const rootVnode = update(oldVnode, Vnode, container) //全书树比对更新
+        return Vnode._instance
+    }
+
     //第一次初始化渲染
     Vnode.isTop = true; //标注顶级Vnode
     container.UniqueKey = mountIndexAdd(); //标注挂载次数
     containerMap[container.UniqueKey] = Vnode; //缓存dom树
-    renderCore(Vnode, container);
-    console.log(containerMap)
+    renderCore(Vnode, container); //全树解析
     return Vnode._instance; //暂时没有用到
 }
 
@@ -384,14 +389,66 @@ export function update(oldVnode, newVnode, parentDomNode) {
 function updateComponent(oldComponentVnode, newComponentVnode, parentDomNode) {
     const { oldState, oldProps, oldVnode } = instanceProps(oldComponentVnode)
     const newProps = newComponentVnode.props
-    const instance = oldComponentVnode._instance
+    const instance = oldComponentVnode._instance //记录旧实例
 
     //如果props和context中的任意一个改变了，那么就会触发组件的receive,render,update等
     //但是依旧会继续往下比较
 
-    //更新原来组件的信息
-    oldComponentVnode._instance.props = newProps
+    oldComponentVnode._instance.props = newProps //更新原来组件的信息
 
+    oldComponentVnode._instance.lifeCycle = Com.UPDATING //修改周期状态为更新中
+
+    if (oldComponentVnode._instance.componentWillReceiveProps) {
+        catchError(oldComponentVnode._instance, 'componentWillReceiveProps', [newProps]); //执行当前周期钩子
+        let mergedState = oldComponentVnode._instance.state; //获取旧实例上state
+        oldComponentVnode._instance._penddingState.forEach((partialState) => {
+            mergedState = Object.assign({}, mergedState, partialState.partialNewState) //合并state
+        })
+        oldComponentVnode._instance.state = mergedState //更新旧实例上state
+    }
+
+    if (oldComponentVnode._instance.shouldComponentUpdate) {
+        let shouldUpdate = catchError(oldComponentVnode._instance, 'shouldComponentUpdate', [newProps, oldState]);
+        if (!shouldUpdate) { //不更新时处理
+            //无论shouldComponentUpdate结果是如何，数据都会给用户设置上去
+            //但是不一定会刷新
+            oldComponentVnode._instance.props = newProps
+            oldComponentVnode._instance.context = newContext
+            return
+        }
+    }
+
+    if (oldComponentVnode._instance.componentWillUpdate) {
+        catchError(oldComponentVnode._instance, 'componentWillUpdate', [newProps, oldState])
+    }
+
+    currentOwner.cur = oldComponentVnode._instance
+
+    let newVnode = oldComponentVnode._instance.render ? catchError(oldComponentVnode._instance, 'render', []) : new newComponentVnode.type(newProps)
+    newVnode = newVnode ? newVnode : new VnodeClass('#text', "", null, null)
+    const renderedType = typeNumber(newVnode);
+    if (renderedType === 3 && renderedType === 4) {
+        renderedVnode = new VnodeClass('#text', renderedVnode, null, null);
+    }
+
+    let fixedOldVnode = oldVnode ? oldVnode : oldComponentVnode._instance
+
+    currentOwner.cur = null
+
+    update(fixedOldVnode, newVnode, oldComponentVnode._hostNode)
+    oldComponentVnode._hostNode = newVnode._hostNode
+    if (oldComponentVnode._instance.Vnode) {//更新React component的时候需要用新的完全更新旧的component，不然无法更新
+        oldComponentVnode._instance.Vnode = newVnode
+    } else {
+        oldComponentVnode._instance = newVnode
+    }
+
+    if (oldComponentVnode._instance) {
+        if (oldComponentVnode._instance.componentDidUpdate) {
+            catchError(oldComponentVnode._instance, 'componentDidUpdate', [oldProps, oldState, oldContext]);
+        }
+        oldComponentVnode._instance.lifeCycle = Com.UPDATED
+    }
 }
 
 //更新文本节点
