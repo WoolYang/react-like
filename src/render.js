@@ -161,13 +161,25 @@ function mountComponent(Vnode, parentDomNode) {
         Vnode._instance = instance;//for react-redux,这里是渲染无状态组件，直接渲染
         return renderCore(instance, parentDomNode);
     }
+
+    //生命周期函数
+    if (instance.componentWillMount) { //异常捕获
+        const isCatched = catchError(instance, 'componentWillMount', [Vnode]);
+        if (isCatched) return;
+    }
+
     //let lastOwner = currentOwner.cur;
     currentOwner.cur = instance;
 
     let renderedVnode = catchError(instance, 'render', [Vnode]);
     const renderedType = typeNumber(renderedVnode);
     console.log(renderedType)
-    //  const renderedVnode = instance.render(); //自定义组件中的render方法获取vnode
+    if (renderedType === 7) {
+        renderedVnode = mountChild(renderedVnode, parentDomNode, parentContext, instance, Vnode);
+    }
+    if (renderedType === 3 && renderedType === 4) {
+        renderedVnode = new VnodeClass('#text', renderedVnode, null, null);
+    }
 
     currentOwner.cur = null;
 
@@ -182,12 +194,30 @@ function mountComponent(Vnode, parentDomNode) {
     instance.Vnode = renderedVnode; //挂载虚拟dom到组件实例上
     instance.Vnode._mountIndex = mountIndexAdd();
 
+    instance.Vnode.return = Vnode;//必须要在插入前设置return(父Vnode)给所有的Vnode ？？？？
+
     let domNode = null
     if (renderedType !== 7) {
         domNode = renderCore(renderedVnode, parentDomNode); //递归调用
+    } else {
+        domNode = renderedVnode[0]._hostNode;
     }
 
+
     Vnode._hostNode = domNode; //记录真实dom到对应的虚拟dom节点上 ！！！
+
+    instance.Vnode._hostNode = domNode;//用于在更新时期oldVnode的时候获取_hostNode
+
+    if (instance.componentDidMount) {
+        //Moutting变量用于标记组件是否正在挂载
+        //如果正在挂载，则所有的setState全部都要合并
+        instance.lifeCycle = Com.MOUNTTING;
+        catchError(instance, 'componentDidMount', []);
+        instance.componentDidMount = null;//防止用户调用
+        instance.lifeCycle = Com.MOUNT;
+    }
+
+    instance._updateInLifeCycle(); // componentDidMount之后一次性更新
 
     return domNode; //返回真实dom
 }
