@@ -10,10 +10,13 @@ class Test extends React.Component {
                         color: color[rand]
                     })
                 }.bind(this), 1000); */
+        this.state = {
+            color: 'red'
+        }
     }
 
-    state = {
-        color: 'red'
+    componentDidMount() {
+        this.setState({ color: 'blue' })
     }
 
     render() {

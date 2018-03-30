@@ -23,7 +23,7 @@ export function updateProps(oldProps, newProps, hostNode) {
         if (name === 'children') continue
 
         if (oldProps[name] !== newProps[name]) {
-            mapProp(hostNode, newProps)
+            mapProps(hostNode, newProps)
         }
     }
 
@@ -33,7 +33,7 @@ export function updateProps(oldProps, newProps, hostNode) {
             restProps[newName] = newProps[newName]
         }
     }
-    mapProp(hostNode, restProps)
+    mapProps(hostNode, restProps)
 }
 
 export const mappingStrategy = {

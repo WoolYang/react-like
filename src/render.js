@@ -3,6 +3,7 @@ import { flattenChildren } from './createElement'
 import { mapProps, updateProps } from './mapProps'
 import { catchError } from "./errorBoundary";
 import { disposeVnode } from "./disposeVnode";
+import { Com } from './reactClass'
 
 let mountIndex = 0 //统计挂载次数
 let containerMap = {} //用于缓存vnode，即虚拟dom树
@@ -352,7 +353,7 @@ export function update(oldVnode, newVnode, parentDomNode) {
     newVnode._hostNode = oldVnode._hostNode //拷贝旧vnode节点的真实dom
     if (oldVnode.type === newVnode.type) { //为同类型节点
         if (typeNumber(oldVnode) === 7) { //节点为数组，执行diff子类型比对
-            newVnode = updateChild(oldVnode, newVnode, parentDomNode); //得的更新后的vnode
+            newVnode = updateChildren(oldVnode, newVnode, parentDomNode); //得的更新后的vnode
             newVnode.return = oldVnode.return;
             newVnode._hostNode = newVnode[0]._hostNode;
         }
@@ -365,7 +366,7 @@ export function update(oldVnode, newVnode, parentDomNode) {
 
         if (typeof oldVnode.type === 'string') {//原生html
             updateProps(oldVnode.props, newVnode.props, newVnode._hostNode)
-            newVnode.props.children = updateChild(oldVnode.props.children, newVnode.props.children, oldVnode._hostNode) //递归调用更新子层
+            newVnode.props.children = updateChildren(oldVnode.props.children, newVnode.props.children, oldVnode._hostNode) //递归调用更新子层
         }
         if (typeof oldVnode.type === 'function') {//自定义组件
             if (!oldVnode._instance.render) { //无状态组件
@@ -379,7 +380,7 @@ export function update(oldVnode, newVnode, parentDomNode) {
                 return newVnode
             }
             //实例组件
-            //   updateComponent(oldVnode, newVnode, parentDomNode) //暂未实现
+            updateComponent(oldVnode, newVnode, parentDomNode) //暂未实现
             newVnode.owner = oldVnode.owner;
             newVnode.ref = oldVnode.ref;
             newVnode.key = oldVnode.key;

@@ -66,7 +66,7 @@ export class ReactClass {
         this.nextState = this.state //获取旧state引用
 
         //多次合并state操作，得到最终结果nextState
-        _penddingState.forEach((item, index) => {
+        this._penddingState.forEach((item, index) => {
             if (typeof item.partialNewState === 'function') {
                 this.nextState = Object.assign({}, this.nextState, item.partialNewState(this.nextState, this.props))
             } else {
