@@ -1,47 +1,47 @@
-import { flattenChildren } from './createElement'
-import { typeNumber } from './utils'
+import { flattenChildren } from "./createElement";
+import { typeNumber } from "./utils";
 
 export const Children = {
     map(childVnode, callback, context) {
         if (childVnode === null || childVnode === undefined) {
-            return [childVnode]
+            return [childVnode];
         }
         if (typeNumber(childVnode) !== 7) {
-            return [callback.call(context, childVnode, 0)]
+            return [callback.call(context, childVnode, 0)];
         }
 
-        var ret = []
+        var ret = [];
         flattenChildren(childVnode).forEach((oldVnode, index) => {
-            let newVnode = callback.call(context, oldVnode, index)
+            let newVnode = callback.call(context, oldVnode, index);
             if (newVnode === null) {
-                return
+                return;
             }
-            ret.push(newVnode)
-        })
-        return ret
+            ret.push(newVnode);
+        });
+        return ret;
     },
     only(childVnode) {
         if (typeNumber(childVnode) !== 7) {
-            return childVnode
+            return childVnode;
         }
         throw new Error("React.Children.only expect only one child, which means you cannot use a list inside a component");
     },
     count(childVnode) {
         if (childVnode === null) {
-            return 0
+            return 0;
         }
         if (typeNumber(childVnode) !== 7) {
-            return 1
+            return 1;
         }
-        return flattenChildren(childVnode).length
+        return flattenChildren(childVnode).length;
     },
     forEach(childVnode, callback, context) {
-        let flatten = flattenChildren(childVnode)
+        let flatten = flattenChildren(childVnode);
 
         if (typeNumber(flatten) === 7) {
             flattenChildren(childVnode).forEach(callback, context);
         } else {
-            callback.call(context, childVnode, 0)
+            callback.call(context, childVnode, 0);
         }
     },
 
