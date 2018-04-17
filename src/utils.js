@@ -11,7 +11,7 @@ const mapType = {
 
 const specialStyle = {
     zIndex: 1
-}
+};
 
 //映射数据类型为数字
 export function typeNumber(data) {
@@ -28,29 +28,29 @@ export function typeNumber(data) {
 //自定给specialStyle外的style配置默认单位
 export function styleHelper(styleName, styleNumber) {
     if (typeNumber(styleNumber) === 3) {
-        const style = specialStyle[styleName] ? styleNumber : styleNumber + 'px'
-        return style
+        const style = specialStyle[styleName] ? styleNumber : styleNumber + "px";
+        return style;
     }
-    return styleNumber
+    return styleNumber;
 }
 
 //比对新旧vnode
 export function isSameVnode(pre, next) {
     if (pre.type === next.type && pre.key === next.key) {
-        return true
+        return true;
     }
-    return false
+    return false;
 }
 
 //映射节点key值为索引
 export function mapKeyToIndex(old) {
-    let hascode = {}
+    let hascode = {};
     old.forEach((el, index) => {
         if (el.key) {
-            hascode[el.key] = index
+            hascode[el.key] = index;
         }
-    })
-    return hascode
+    });
+    return hascode;
 }
 
 //匹配事件属性
@@ -64,9 +64,11 @@ export function isEventNameLowerCase(name) {
 
 //对象浅拷贝
 export function extend(obj, props) {
-    for (let i in props) obj[i] = props[i];
+    for (let i in props) {
+        obj[i] = props[i];
+    }
     return obj;
 }
 
 //空函数
-export const noop = () => { }
+export const noop = () => { };

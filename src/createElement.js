@@ -143,7 +143,7 @@ export function flattenChildren(children, parentVnode) {
     array = array.map((item) => {
         //把数组中的字符串数字转化为text类型vnode
         if (typeNumber(item) === 4) {
-            item = new Vnode("#text", item, null, null)
+            item = new Vnode("#text", item, null, null);
         } else {
             if (item) {//首先判断是否存在
                 if (typeNumber(item) !== 3 && typeNumber(item) !== 4) {//再判断是不是字符串，或者数字
