@@ -11,8 +11,6 @@ export function catchError(Instance, hookname, args) {
             return resulte
         }
     } catch (e) {
-        // throw new Error(e);
-        // disposeVnode(Instance.Vnode);
         let Vnode = void 666;
         Vnode = Instance.Vnode;
         if (hookname === 'render' || hookname === 'componentWillMount') {

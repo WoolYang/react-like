@@ -3,7 +3,8 @@ import { flattenChildren } from './createElement'
 import { mapProps, updateProps } from './mapProps'
 import { catchError } from "./errorBoundary";
 import { disposeVnode } from "./disposeVnode";
-import { Com } from './reactClass'
+import { Com } from './reactClass';
+import { setRef } from './refs'
 
 let mountIndex = 0 //统计挂载次数
 let containerMap = {} //用于缓存vnode，即虚拟dom树
@@ -13,6 +14,12 @@ let containerMap = {} //用于缓存vnode，即虚拟dom树
 export let currentOwner = {
     cur: null
 };
+
+
+function mountIndexAdd() {
+    return mountIndex++
+}
+
 
 //实例组件状态
 function instanceProps(componentVnode) {
@@ -40,7 +47,7 @@ export function render(Vnode, container) {
 
     if (container.UniqueKey) {//若干该组件已经被渲染
         const oldVnode = containerMap[UniqueKey]
-        const rootVnode = update(oldVnode, Vnode, container) //全书树比对更新
+        const rootVnode = update(oldVnode, Vnode, container) //全树比对更新
         return Vnode._instance
     }
 
@@ -48,12 +55,12 @@ export function render(Vnode, container) {
     Vnode.isTop = true; //标注顶级Vnode
     container.UniqueKey = mountIndexAdd(); //标注挂载次数
     containerMap[container.UniqueKey] = Vnode; //缓存dom树
-    renderCore(Vnode, container); //全树解析
-    return Vnode._instance; //暂时没有用到
+    renderCore(Vnode, container, false, Vnode.context, Vnode.owner); //全树解析
+    return Vnode._instance; //暂时没有用到，node实例
 }
 
 //渲染引擎核心模块
-function renderCore(Vnode, container) {
+function renderCore(Vnode, container, isUpdate, parentContext, instance) {
     const { type, props } = Vnode;
     // console.log(Vnode)
     if (!type) return;
@@ -62,7 +69,8 @@ function renderCore(Vnode, container) {
     let domNode;
 
     if (typeof type === 'function') { //自定义组件
-        domNode = mountComponent(Vnode, container); //递归解析自定义组件从组件的render方法中拿到string类型标签
+        const fixContext = parentContext || {}; //取得context
+        domNode = mountComponent(Vnode, container, fixContext); //递归解析自定义组件从组件的render方法中拿到string类型标签
     } else if (typeof type === 'string' && type === '#text') { //html原始标签
         domNode = mountTextComponent(Vnode, container);
     } else {
@@ -71,22 +79,42 @@ function renderCore(Vnode, container) {
 
     if (typeof type !== 'function') {
         if (typeNumber(children) > 2 && children !== undefined) { //child不存在或类型不符合时不做解析处理
-            const NewChild = mountChildren(children, domNode, Vnode); //解析children内容，记录格式化后的children
+            const NewChild = mountChildren(children, domNode, Vnode, parentContext, instance); //解析children内容，记录格式化后的children
             props.children = NewChild
         }
     }
 
     Vnode._hostNode = domNode; //真实dom挂载到对应层级的vnode属性上
-
+    setRef(Vnode, instance, domNode)//为虚拟组件添加ref
     mapProps(domNode, props, Vnode) //映射props中的属性到domNode
 
-    container.appendChild(domNode)
+
+    if (typeNumber(domNode) === 7) {
+        if (isUpdate) {
+            return domNode
+        } else {
+            if (container && domNode && container.nodeName !== '#text') {
+                domNode.forEach((DOM_SINGLE_Node) => {
+                    container.appendChild(DOM_SINGLE_Node)
+                })
+            }
+        }
+    }
+
+    if (isUpdate) {
+        return domNode
+    } else {
+        Vnode._mountIndex = mountIndexAdd()
+        if (container && domNode && container.nodeName !== '#text') {
+            container.appendChild(domNode)
+        }
+    }
 
     return domNode;
 }
 
 //挂载children
-function mountChildren(children, parentDomNode, parentVnode) {
+function mountChildren(children, parentDomNode, parentVnode, parentContext, instance) {
     //  console.log(children)
     let childType = typeNumber(children) //获取children节点类型
     let flattenChildList = children;
@@ -100,9 +128,9 @@ function mountChildren(children, parentDomNode, parentVnode) {
     if (childType === 8 && children !== undefined) {
         flattenChildList = flattenChildren(children, parentVnode)
         if (typeNumber(children.type) === 5) {
-            flattenChildList._hostNode = renderCore(flattenChildList, parentDomNode)
+            flattenChildList._hostNode = renderCore(flattenChildList, parentDomNode, false, parentContext, instance)
         } else if (typeNumber(children.type) === 3 || typeNumber(children.type) === 4) {
-            flattenChildList._hostNode = mountNativeElement(flattenChildList, parentDomNode)
+            flattenChildList._hostNode = mountNativeElement(flattenChildList, parentDomNode, instance)
         }
     }
 
@@ -113,9 +141,9 @@ function mountChildren(children, parentDomNode, parentVnode) {
         flattenChildList.forEach((item) => {
             if (item) {
                 if (typeof item.type === 'function') { //如果children是自定义组件
-                    mountComponent(item, parentDomNode)
+                    mountComponent(item, parentDomNode, parentContext)
                 } else {
-                    renderCore(item, parentDomNode)
+                    renderCore(item, parentDomNode, false, parentContext, instance)
                 }
             }
         })
@@ -131,10 +159,11 @@ function mountChildren(children, parentDomNode, parentVnode) {
 }
 
 //解析文本vnode，并挂载真实dom到_hostNode
-function mountNativeElement(Vnode, parentDomNode) {
+function mountNativeElement(Vnode, parentDomNode, instance) {
     // console.log(Vnode)
-    const domNode = renderCore(Vnode, parentDomNode)
+    const domNode = renderCore(Vnode, parentDomNode, false, {}, instance)
     Vnode._hostNode = domNode
+    Vnode._mountIndex = mountIndexAdd()
     return domNode
 }
 
@@ -144,23 +173,30 @@ function mountTextComponent(Vnode, domNode) {
     let textDomNode = document.createTextNode(fixText)
     domNode.appendChild(textDomNode)
     Vnode._hostNode = textDomNode
+    Vnode._mountIndex = mountIndexAdd()
     return textDomNode
 }
 
 
 //挂载自定义组件
-function mountComponent(Vnode, parentDomNode) {
+function mountComponent(Vnode, parentDomNode, parentContext) {
     const { type, props, key, ref } = Vnode
 
     const Component = type; //拿到自定义组件(function)
 
-    const instance = new Component(props); //实例化自定义组件，传入props
+    const instance = new Component(props, parentContext); //实例化自定义组件，传入props
 
     Vnode._instance = instance; // 在父节点上的child元素会保存一个自己，对应组件实例化对象
 
     if (!instance.render) {
         Vnode._instance = instance;//for react-redux,这里是渲染无状态组件，直接渲染
-        return renderCore(instance, parentDomNode);
+        return renderCore(instance, parentDomNode, false, parentContext);
+    }
+
+    if (instance.getChildContext) {//如果用户定义getChildContext，那么用它生成子context
+        instance.context = Object.assign({}, instance.context, instance.getChildContext());
+    } else {
+        instance.context = Object.assign({}, parentContext);
     }
 
     //生命周期函数
@@ -169,7 +205,7 @@ function mountComponent(Vnode, parentDomNode) {
         if (isCatched) return;
     }
 
-    //let lastOwner = currentOwner.cur;
+    let lastOwner = currentOwner.cur;
     currentOwner.cur = instance;
 
     let renderedVnode = catchError(instance, 'render', [Vnode]);
@@ -182,7 +218,7 @@ function mountComponent(Vnode, parentDomNode) {
         renderedVnode = new VnodeClass('#text', renderedVnode, null, null);
     }
 
-    currentOwner.cur = null;
+    currentOwner.cur = lastOwner;
 
     if (renderedVnode === void 233) {
         // console.warn('你可能忘记在组件render()方法中返回jsx了');
@@ -199,11 +235,12 @@ function mountComponent(Vnode, parentDomNode) {
 
     let domNode = null
     if (renderedType !== 7) {
-        domNode = renderCore(renderedVnode, parentDomNode); //递归调用
+        domNode = renderCore(renderedVnode, parentDomNode, false, instance.context, instance); //递归调用
     } else {
         domNode = renderedVnode[0]._hostNode;
     }
 
+    setRef(Vnode, instance, domNode);
 
     Vnode._hostNode = domNode; //记录真实dom到对应的虚拟dom节点上 ！！！
 
@@ -223,12 +260,6 @@ function mountComponent(Vnode, parentDomNode) {
     return domNode; //返回真实dom
 }
 
-function mountIndexAdd() {
-    return mountIndex++
-}
-
-
-
 /**
  * diff算法，采用snabbdom比对
  * 
@@ -236,7 +267,7 @@ function mountIndexAdd() {
  * @param {any} oldVnode  新vnode节点
  * @param {any} parentDomNode  父级真实dom，用于操作
  */
-function updateChildren(oldVnode, newVnode, parentDomNode) {
+function updateChildren(oldVnode, newVnode, parentDomNode, parentContext) {
     newVnode = flattenChildren(newVnode) //扁平化处理，去除jsx生成的嵌套，文本节点转换为VNode等
     oldVnode = oldVnode || [] //旧节点
     //如果不是数组，转换为数组
@@ -257,7 +288,7 @@ function updateChildren(oldVnode, newVnode, parentDomNode) {
 
     if (newLength >= 0 && !oldLength) { //全部新节点存在，旧节点不存在，直接逐个解析
         newVnode.forEach((item, idx) => {
-            renderCore(item, parentDomNode)
+            renderCore(item, parentDomNode, false, parentContext)
             //newVnode[index] = item //更新解析后vnode的引用
         })
         return newVnode
@@ -307,21 +338,28 @@ function updateChildren(oldVnode, newVnode, parentDomNode) {
 
             if (indexInOld === undefined) { //如果没有找到索引，表明该节点在oldVnode中不存在
                 if (newStartVnode.type === '#text') { //该节点为文本类型
-                    update(oldStartVnode, newStartVnode, parentDomNode);
+                    update(oldStartVnode, newStartVnode, parentDomNode, parentContext);
+                } else {
+                    let _parentDomNode = parentDomNode;
+                    if (parentDomNode.nodeName === '#text') {
+                        _parentDomNode = parentDomNode.parentNode;
+                    }
+                    /*                 if (oldStartVnode.type === '#text') {        //用处？
+                                        _parentDomNode = parentDomNode.parentNode;
+                                    } */
+
+                    let newElm = renderCore(newStartVnode, _parentDomNode, true, parentContext)
+                    _parentDomNode.insertBefore(newElm, oldStartVnode._hostNode)
+                    newStartVnode = newVnode[++newStartIdx]
                 }
             } else {
-                let _parentDomNode = parentDomNode;
-                if (parentDomNode.nodeName === '#text') {
-                    _parentDomNode = parentDomNode.parentNode;
-                }
-                /*                 if (oldStartVnode.type === '#text') {        //用处？
-                                    _parentDomNode = parentDomNode.parentNode;
-                                } */
-
-                let newElm = renderCore(newStartVnode, _parentDomNode)
-                _parentDomNode.insertBefore(newElm, oldStartVnode._hostNode)
+                let moveVnode = oldChild[indexInOld]
+                update(moveVnode, newStartVnode, moveVnode._hostNode, parentContext)
+                parentDomNode.insertBefore(moveVnode._hostNode, oldStartVnode._hostNode)
+                oldChild[indexInOld] = undefined
+                newStartVnode = newChild[++newStartIndex]
             }
-            newStartVnode = newVnode[++newStartIdx]
+
         }
 
         if (oldStartIdx > oldEndIdx) { //如果旧vnode指针相遇,即剩余新vnode为新增节点
@@ -349,11 +387,11 @@ function updateChildren(oldVnode, newVnode, parentDomNode) {
 }
 
 //更新策略
-export function update(oldVnode, newVnode, parentDomNode) {
+export function update(oldVnode, newVnode, parentDomNode, parentContext) {
     newVnode._hostNode = oldVnode._hostNode //拷贝旧vnode节点的真实dom
     if (oldVnode.type === newVnode.type) { //为同类型节点
         if (typeNumber(oldVnode) === 7) { //节点为数组，执行diff子类型比对
-            newVnode = updateChildren(oldVnode, newVnode, parentDomNode); //得的更新后的vnode
+            newVnode = updateChildren(oldVnode, newVnode, parentDomNode, parentContext); //得的更新后的vnode
             newVnode.return = oldVnode.return;
             newVnode._hostNode = newVnode[0]._hostNode;
         }
@@ -366,13 +404,18 @@ export function update(oldVnode, newVnode, parentDomNode) {
 
         if (typeof oldVnode.type === 'string') {//原生html
             updateProps(oldVnode.props, newVnode.props, newVnode._hostNode)
-            newVnode.props.children = updateChildren(oldVnode.props.children, newVnode.props.children, oldVnode._hostNode) //递归调用更新子层
+
+            if (oldVnode.ref !== newVnode.ref) {
+                setRef(newVnode, oldVnode.owner, newVnode._hostNode)
+            }
+
+            newVnode.props.children = updateChildren(oldVnode.props.children, newVnode.props.children, oldVnode._hostNode, parentContext) //递归调用更新子层
         }
         if (typeof oldVnode.type === 'function') {//自定义组件
             if (!oldVnode._instance.render) { //无状态组件
                 const { props } = newVnode
                 const newStateLessInstance = new newVnode.type(props) //实例化该节点，传入新的props
-                update(oldVnode._instance, newStateLessInstance, parentDomNode)
+                update(oldVnode._instance, newStateLessInstance, parentDomNode, parentContext)
                 newStateLessInstance.owner = oldVnode._instance.owner
                 newStateLessInstance.ref = oldVnode._instance.ref
                 newStateLessInstance.key = oldVnode._instance.key
@@ -380,7 +423,7 @@ export function update(oldVnode, newVnode, parentDomNode) {
                 return newVnode
             }
             //实例组件
-            updateComponent(oldVnode, newVnode, parentDomNode) //暂未实现
+            updateComponent(oldVnode, newVnode, parentDomNode, parentContext)
             newVnode.owner = oldVnode.owner;
             newVnode.ref = oldVnode.ref;
             newVnode.key = oldVnode.key;
@@ -389,7 +432,7 @@ export function update(oldVnode, newVnode, parentDomNode) {
     } else { //不同类型节点，简单粗暴直接干掉
         if (typeNumber(newVnode) === 7) {
             newVnode.forEach((item, index) => {
-                let dom = renderCore(item, parentDomNode) //解析子节点
+                let dom = renderCore(item, parentDomNode, true, parentContext) //解析子节点
                 if (index === 0) newVnode._hostNode = dom; //挂载子节点dom
                 const parentNode = parentDomNode.parentNode
                 if (item._hostNode) {
@@ -417,9 +460,10 @@ export function update(oldVnode, newVnode, parentDomNode) {
     }
 }
 
-function updateComponent(oldComponentVnode, newComponentVnode, parentDomNode) {
-    const { oldState, oldProps, oldVnode } = instanceProps(oldComponentVnode)
+function updateComponent(oldComponentVnode, newComponentVnode, parentDomNode, parentContext) {
+    const { oldState, oldProps, oldVnode, oldContext } = instanceProps(oldComponentVnode)
     const newProps = newComponentVnode.props
+    let newContext = parentContext
     const instance = oldComponentVnode._instance //记录旧实例
 
     //如果props和context中的任意一个改变了，那么就会触发组件的receive,render,update等
@@ -427,10 +471,16 @@ function updateComponent(oldComponentVnode, newComponentVnode, parentDomNode) {
 
     oldComponentVnode._instance.props = newProps //更新原来组件的信息
 
+    if (instance.getChildContext) {
+        oldComponentVnode._instance.context = Object.assign({}, newContext, instance.getChildContext())
+    } else {
+        oldComponentVnode._instance.context = Object.assign({}, newContext)
+    }
+
     oldComponentVnode._instance.lifeCycle = Com.UPDATING //修改周期状态为更新中
 
     if (oldComponentVnode._instance.componentWillReceiveProps) {
-        catchError(oldComponentVnode._instance, 'componentWillReceiveProps', [newProps]); //执行当前周期钩子
+        catchError(oldComponentVnode._instance, 'componentWillReceiveProps', [newProps, newContext]); //执行当前周期钩子
         let mergedState = oldComponentVnode._instance.state; //获取旧实例上state
         oldComponentVnode._instance._penddingState.forEach((partialState) => {
             mergedState = Object.assign({}, mergedState, partialState.partialNewState) //合并state
@@ -439,7 +489,7 @@ function updateComponent(oldComponentVnode, newComponentVnode, parentDomNode) {
     }
 
     if (oldComponentVnode._instance.shouldComponentUpdate) {
-        let shouldUpdate = catchError(oldComponentVnode._instance, 'shouldComponentUpdate', [newProps, oldState]);
+        let shouldUpdate = catchError(oldComponentVnode._instance, 'shouldComponentUpdate', [newProps, oldState, newContext]);
         if (!shouldUpdate) { //不更新时处理
             //无论shouldComponentUpdate结果是如何，数据都会给用户设置上去
             //但是不一定会刷新
@@ -450,12 +500,13 @@ function updateComponent(oldComponentVnode, newComponentVnode, parentDomNode) {
     }
 
     if (oldComponentVnode._instance.componentWillUpdate) {
-        catchError(oldComponentVnode._instance, 'componentWillUpdate', [newProps, oldState])
+        catchError(oldComponentVnode._instance, 'componentWillUpdate', [newProps, oldState, newContext])
     }
 
+    let lastOwner = currentOwner.cur
     currentOwner.cur = oldComponentVnode._instance
 
-    let newVnode = oldComponentVnode._instance.render ? catchError(oldComponentVnode._instance, 'render', []) : new newComponentVnode.type(newProps)
+    let newVnode = oldComponentVnode._instance.render ? catchError(oldComponentVnode._instance, 'render', []) : new newComponentVnode.type(newProps, newContext)
     newVnode = newVnode ? newVnode : new VnodeClass('#text', "", null, null)
     const renderedType = typeNumber(newVnode);
     if (renderedType === 3 && renderedType === 4) {
@@ -464,9 +515,9 @@ function updateComponent(oldComponentVnode, newComponentVnode, parentDomNode) {
 
     let fixedOldVnode = oldVnode ? oldVnode : oldComponentVnode._instance
 
-    currentOwner.cur = null
+    currentOwner.cur = lastOwner
 
-    update(fixedOldVnode, newVnode, oldComponentVnode._hostNode)
+    update(fixedOldVnode, newVnode, oldComponentVnode._hostNode, instance.context)
     oldComponentVnode._hostNode = newVnode._hostNode
     if (oldComponentVnode._instance.Vnode) {//更新React component的时候需要用新的完全更新旧的component，不然无法更新
         oldComponentVnode._instance.Vnode = newVnode
@@ -488,4 +539,14 @@ function updateText(oldTextVnode, newTextVnode) {
     if (oldTextVnode.props !== newTextVnode.props) {
         dom.nodeValue = newTextVnode.props
     }
+}
+
+export function findDOMNode(ref) {
+    if (ref == null) {
+        return null;
+    }
+    if (ref.nodeType === 1) {
+        return ref;
+    }
+    return ref.__dom || null;
 }

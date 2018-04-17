@@ -13,14 +13,16 @@ export const Com = {
 let uniqueId = 0
 
 export class ReactClass {
-    constructor(props) {
+    constructor(props, context) {
         this.props = props //组件props
+        this.context = context
         this.state = this.state || {} //state初始化
 
         this.nextState = null //更新state
         this.lifeCycle = Com.CREATE//初始化生命节点
         this.stateMergeQueue = []//state队列，作用？？？？
         this._penddingState = []//state即将执行队列
+        this.refs = {}
         this._uniqueId = uniqueId //组件执行标识
         uniqueId++
     }
@@ -33,7 +35,7 @@ export class ReactClass {
 
         //获取用户shouldComponentUpdate逻辑决定是否更新state
         if (this.shouldComponentUpdate) {
-            let shouldUpdate = this.shouldComponentUpdate(this.props, this.nextState)
+            let shouldUpdate = this.shouldComponentUpdate(this.props, this.nextState, this.context)
             if (!shouldUpdate) {
                 return
             }
@@ -63,6 +65,8 @@ export class ReactClass {
     updateComponent() {
         const prevState = this.state //记录旧state
         const oldVnode = this.Vnode //获取旧Vnode
+        const oldContext = this.context
+
         this.nextState = this.state //获取旧state引用
 
         //多次合并state操作，得到最终结果nextState
@@ -78,13 +82,22 @@ export class ReactClass {
             this.state = this.nextState;
         }
 
+        if (this.getChildContext) {
+            this.context = Object.assign({}, this.context, this.getChildContext())
+        }
+
+        let lastOwner = currentOwner.cur;
         currentOwner.cur = this
         this.nextState = null
         let newVnode = this.render()//获取当前节点
         newVnode = newVnode ? newVnode : new Vnode('#text', "", null, null); //用户返回null时创建空节点
-        currentOwner.cur = null
+        currentOwner.cur = lastOwner
 
-        this.Vnode = update(oldVnode, newVnode, this.Vnode._hostNode)//这个函数返回一个更新后的Vnode
+        this.Vnode = update(oldVnode, newVnode, this.Vnode._hostNode, this.context)//这个函数返回一个更新后的Vnode
+
+        if (this.componentDidUpdate) {
+            catchError(this, 'componentDidUpdate', [this.props, prevState, oldContext]);
+        }
 
         //更新结束执行回调
         this._penddingState.forEach(item => {

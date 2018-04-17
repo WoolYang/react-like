@@ -1,3 +1,8 @@
+import { typeNumber } from './utils'
+import { clearRefs } from './refs'
+import { clearEvents } from './mapProps';
+import { catchError } from './errorBoundary';
+
 //用于删除Vnode对应的节点
 export function disposeVnode(Vnode) {
     const { type, props } = Vnode
@@ -12,11 +17,19 @@ export function disposeVnode(Vnode) {
         if (Vnode._instance.componentWillUnmount) {
             catchError(Vnode._instance, 'componentWillUnmount', []);
         }
+        clearRefs(Vnode._instance.ref)
     }
 
     if (Vnode.props.children) {
         disposeChildVnode(Vnode.props.children)
     }
+
+    if (Vnode._hostNode) {//有可能会出现undefind的情况
+        const parent = Vnode._hostNode.parentNode
+        if (parent)
+            parent.removeChild(Vnode._hostNode)
+    }
+
     Vnode._hostNode = null
 }
 

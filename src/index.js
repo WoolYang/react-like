@@ -1,11 +1,17 @@
 import { ReactClass } from './reactClass'
+import { cloneElement } from './cloneElement'
+import { Children as Child } from './children'
 import { createElement } from './createElement'
-import { render } from './render'
+import { render, findDOMNode } from './render'
 
 const React = {
     Component: ReactClass,
     createElement,
-    render
+    Children: Child,
+    render,
+    findDOMNode
 }
 
+export const Component = ReactClass;
+export const Children = Child
 export default React;

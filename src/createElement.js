@@ -61,15 +61,15 @@ export function createElement(type, config, ...children) {
         props.children = children
     }
 
-    /*     let defaultProps = type.defaultProps; //加载
-        if (defaultProps) {
-            for (let propName in defaultProps) {
-                if (props[propName] === undefined) {
-                    props[propName] = defaultProps[propName];
-                }
+    let defaultProps = type.defaultProps; //拷贝默认props
+    if (defaultProps) {
+        for (let propName in defaultProps) {
+            if (props[propName] === undefined) {
+                props[propName] = defaultProps[propName];
             }
         }
-     */
+    }
+
     // console.log(props)
     return new Vnode(type, props, key, ref);
 }
